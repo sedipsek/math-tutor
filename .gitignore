@@ -1,0 +1,18 @@
+# dependencies
+node_modules/
+
+# build
+dist/
+*.tsbuildinfo
+
+# env
+.env
+.env.*
+!.env.example
+
+# data (large)
+datasets/
+
+# misc
+*.log
+.DS_Store

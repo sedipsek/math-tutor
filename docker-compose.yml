@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: math-tutor-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: math
+      POSTGRES_PASSWORD: math
+      POSTGRES_DB: math_tutor
+    volumes:
+      - math_tutor_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U math -d math_tutor"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  math_tutor_pgdata:

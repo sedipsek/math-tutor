@@ -1,0 +1,1 @@
+ALTER TABLE "generated_problems" ADD COLUMN "stem_image_path" text;
