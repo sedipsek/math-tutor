@@ -132,7 +132,7 @@ function AppShell({
 
       <footer className="site-attribution">
         <p>
-          교재 문제 일부는{" "}
+          교재 문제는{" "}
           <a
             href="https://www.aihub.or.kr/aihubdata/data/view.do?aihubDataSe=data&dataSetSn=71859"
             target="_blank"
