@@ -184,20 +184,16 @@ export default function ProblemView({
   }
 
   useEffect(() => {
-    if (!interactive || judged === null || !user) return;
+    // 오답일 때만 피드백 (정답이면 굳이 AI 코멘트 안 함)
+    if (!interactive || judged !== false || !user) return;
 
     if (isMc && picked) {
       const choice = choices?.find((c) => c.marker === picked);
       void loadFeedback(
-        judged,
+        false,
         `${picked} ${choice?.text ?? ""}`.trim(),
         picked,
       );
-      return;
-    }
-
-    if (!isMc && judged === true) {
-      void loadFeedback(true, "(정답)");
     }
     // 주관식 오답은 입력 제출 후에만
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -459,7 +455,7 @@ export default function ProblemView({
             </form>
           )}
 
-          {interactive && judged !== null && (
+          {interactive && judged === false && (
             <div className="feedback-card">
               <h4>AI 피드백</h4>
               {!user ? (
