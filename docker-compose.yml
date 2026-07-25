@@ -4,7 +4,8 @@ services:
     container_name: math-tutor-db
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      # 로컬(앱)만 접근. LAN/외부 노출 금지
+      - "127.0.0.1:5432:5432"
     environment:
       POSTGRES_USER: math
       POSTGRES_PASSWORD: math

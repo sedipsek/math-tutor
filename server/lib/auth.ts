@@ -37,9 +37,18 @@ export async function destroySession(token: string): Promise<void> {
   await db.delete(sessions).where(eq(sessions.token, token));
 }
 
+function cookieSecure(c: Context): boolean {
+  if (process.env.COOKIE_SECURE === "0") return false;
+  if (process.env.COOKIE_SECURE === "1") return true;
+  if (process.env.NODE_ENV === "production") return true;
+  const proto = c.req.header("x-forwarded-proto");
+  return proto === "https";
+}
+
 export function setSessionCookie(c: Context, token: string) {
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
+    secure: cookieSecure(c),
     sameSite: "Lax",
     path: "/",
     maxAge: SESSION_DAYS * 24 * 60 * 60,
@@ -47,7 +56,10 @@ export function setSessionCookie(c: Context, token: string) {
 }
 
 export function clearSessionCookie(c: Context) {
-  deleteCookie(c, SESSION_COOKIE, { path: "/" });
+  deleteCookie(c, SESSION_COOKIE, {
+    path: "/",
+    secure: process.env.NODE_ENV === "production",
+  });
 }
 
 export async function loadUserFromToken(

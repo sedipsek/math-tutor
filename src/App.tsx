@@ -129,6 +129,21 @@ function AppShell({
       ) : (
         <Outlet />
       )}
+
+      <footer className="site-attribution">
+        <p>
+          교재 문제 일부는{" "}
+          <a
+            href="https://www.aihub.or.kr/aihubdata/data/view.do?aihubDataSe=data&dataSetSn=71859"
+            target="_blank"
+            rel="noreferrer"
+          >
+            AI 허브 「수학 교과 문제 풀이과정 데이터」(71859)
+          </a>
+          를 활용해요. 권리: 한국지능정보사회진흥원(NIA) 및 수행기관.
+          AI가 만든 유사 문제·해설은 생성 결과물이에요.
+        </p>
+      </footer>
     </div>
   );
 }

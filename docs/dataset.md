@@ -4,6 +4,10 @@
 
 중·고 전체 (초등 제외). 원본은 `datasets/aihub-71859/` (gitignore).
 
+**출처:** [AI 허브 — 수학 교과 문제 풀이과정 데이터 (71859)](https://www.aihub.or.kr/aihubdata/data/view.do?aihubDataSe=data&dataSetSn=71859)  
+한국지능정보사회진흥원(NIA) 및 수행기관. 이용정책: https://aihub.or.kr/intrcn/guid/usagepolicy.do  
+원본 데이터의 재배포·제3자 제공은 하지 않습니다.
+
 ```
 aihub-secondary/
   manifest.jsonl

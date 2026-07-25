@@ -43,6 +43,10 @@ import { generateAlternateExplanations } from "../lib/generate.ts";
 import { loadGeneratedDetail } from "../lib/generated.ts";
 import { fail, parseCsvEnum, parsePagination } from "../lib/http.ts";
 import { LlmError } from "../lib/llm.ts";
+import { rateLimit } from "../lib/rateLimit.ts";
+
+/** LLM 호출: IP당 1시간 15회 */
+const llmLimit = rateLimit({ name: "llm", limit: 15, windowMs: 60 * 60_000 });
 import { sseResponse, writeProgress } from "../lib/sse.ts";
 import {
   createSimilarHandler,
@@ -717,7 +721,7 @@ problemRoutes.get("/random", async (c) => {
   return c.json({ matched, problem: detail });
 });
 
-problemRoutes.post("/:id/similar", requireAuth, async (c) => {
+problemRoutes.post("/:id/similar", requireAuth, llmLimit, async (c) => {
   const user = c.get("user")!;
   const id = c.req.param("id");
   if (!id) return fail(c, 400, "bad_path", "문제 id 필요");
@@ -730,14 +734,14 @@ problemRoutes.post("/:id/similar", requireAuth, async (c) => {
   return c.json(result.detail);
 });
 
-problemRoutes.post("/:id/similar/stream", requireAuth, async (c) => {
+problemRoutes.post("/:id/similar/stream", requireAuth, llmLimit, async (c) => {
   const user = c.get("user")!;
   const id = c.req.param("id");
   if (!id) return fail(c, 400, "bad_path", "문제 id 필요");
   return createSimilarStreamResponse(c, id, user);
 });
 
-problemRoutes.post("/:id/feedback", requireAuth, async (c) => {
+problemRoutes.post("/:id/feedback", requireAuth, llmLimit, async (c) => {
   const id = c.req.param("id");
   if (!id) return fail(c, 400, "bad_path", "문제 id 필요");
 
@@ -814,59 +818,64 @@ problemRoutes.get("/:id/explanations", async (c) => {
   return c.json({ items });
 });
 
-problemRoutes.post("/:id/explanations/stream", requireAuth, async (c) => {
-  const id = c.req.param("id");
-  if (!id) return fail(c, 400, "bad_path", "문제 id 필요");
+problemRoutes.post(
+  "/:id/explanations/stream",
+  requireAuth,
+  llmLimit,
+  async (c) => {
+    const id = c.req.param("id");
+    if (!id) return fail(c, 400, "bad_path", "문제 id 필요");
 
-  const access = await assertProblemReadable(id, c.get("user"));
-  if (!access.ok) {
-    return fail(c, access.status, access.code, access.message);
-  }
+    const access = await assertProblemReadable(id, c.get("user"));
+    if (!access.ok) {
+      return fail(c, access.status, access.code, access.message);
+    }
 
-  const source = await loadExplanationSource(id);
-  if (!source) {
-    return fail(c, 404, "not_found", "문제 없음");
-  }
+    const source = await loadExplanationSource(id);
+    if (!source) {
+      return fail(c, 404, "not_found", "문제 없음");
+    }
 
-  const signal = c.req.raw.signal;
+    const signal = c.req.raw.signal;
 
-  return sseResponse(c, async (stream) => {
-    let pair;
-    try {
-      pair = await generateAlternateExplanations(source, {
-        signal,
-        onProgress: (ev) => writeProgress(stream, ev),
-      });
-    } catch (err) {
-      const message =
-        err instanceof LlmError
-          ? err.message
-          : err instanceof Error
+    return sseResponse(c, async (stream) => {
+      let pair;
+      try {
+        pair = await generateAlternateExplanations(source, {
+          signal,
+          onProgress: (ev) => writeProgress(stream, ev),
+        });
+      } catch (err) {
+        const message =
+          err instanceof LlmError
             ? err.message
-            : "다른 풀이 생성 실패";
+            : err instanceof Error
+              ? err.message
+              : "다른 풀이 생성 실패";
+        await stream.writeSSE({
+          event: "error",
+          data: JSON.stringify({ message }),
+        });
+        return;
+      }
+
+      await writeProgress(stream, { type: "stage", stage: "save" });
+      const items = await replaceExplanations(id, pair);
+
+      for (const explanation of items) {
+        await stream.writeSSE({
+          event: "item",
+          data: JSON.stringify({ explanation }),
+        });
+      }
+
       await stream.writeSSE({
-        event: "error",
-        data: JSON.stringify({ message }),
+        event: "done",
+        data: JSON.stringify({ count: items.length }),
       });
-      return;
-    }
-
-    await writeProgress(stream, { type: "stage", stage: "save" });
-    const items = await replaceExplanations(id, pair);
-
-    for (const explanation of items) {
-      await stream.writeSSE({
-        event: "item",
-        data: JSON.stringify({ explanation }),
-      });
-    }
-
-    await stream.writeSSE({
-      event: "done",
-      data: JSON.stringify({ count: items.length }),
     });
-  });
-});
+  },
+);
 
 problemRoutes.get("/:id/assets/*", async (c) => {
   const id = c.req.param("id");

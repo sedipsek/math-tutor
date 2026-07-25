@@ -598,10 +598,19 @@ export default function ProblemView({
       )}
 
       <footer className="pv-source">
-        {detail.publisher}
-        {detail.publicationYear ? ` · ${detail.publicationYear.slice(0, 4)}` : ""}
-        {" · "}
-        {detail.id}
+        {detail.generated ? (
+          <>AI 생성 · {detail.id}</>
+        ) : (
+          <>
+            AI 허브(71859) 활용
+            {detail.publisher ? ` · ${detail.publisher}` : ""}
+            {detail.publicationYear
+              ? ` · ${detail.publicationYear.slice(0, 4)}`
+              : ""}
+            {" · "}
+            {detail.id}
+          </>
+        )}
       </footer>
 
       {showSimilarUi && (

@@ -25,6 +25,7 @@ import {
 } from "../lib/generated.ts";
 import { fail, parsePagination } from "../lib/http.ts";
 import { LlmError } from "../lib/llm.ts";
+import { rateLimit } from "../lib/rateLimit.ts";
 import { sseResponse, writeProgress } from "../lib/sse.ts";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -32,6 +33,13 @@ import { fileURLToPath } from "node:url";
 export const adminRoutes = new Hono<{ Variables: AuthVariables }>();
 
 adminRoutes.use("*", requireAdmin);
+
+/** 어드민 생성: IP당 1시간 30회 */
+const adminLlmLimit = rateLimit({
+  name: "admin-llm",
+  limit: 30,
+  windowMs: 60 * 60_000,
+});
 
 const PROBLEMS_ROOT = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -237,7 +245,7 @@ async function parseGenerateBody(
   };
 }
 
-adminRoutes.post("/generate", async (c) => {
+adminRoutes.post("/generate", adminLlmLimit, async (c) => {
   let body: Record<string, unknown>;
   try {
     body = await c.req.json();
@@ -303,7 +311,7 @@ adminRoutes.post("/generate", async (c) => {
   return c.json({ items: created }, 201);
 });
 
-adminRoutes.post("/generate/stream", async (c) => {
+adminRoutes.post("/generate/stream", adminLlmLimit, async (c) => {
   let body: Record<string, unknown>;
   try {
     body = await c.req.json();

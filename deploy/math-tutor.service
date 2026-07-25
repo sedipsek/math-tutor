@@ -1,0 +1,22 @@
+[Unit]
+Description=math-tutor (Hono + Vite dist)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/math-tutor
+Environment=NODE_ENV=production
+Environment=HOST=0.0.0.0
+Environment=PORT=3001
+Environment=COOKIE_SECURE=1
+ExecStart=/usr/bin/npm run start
+Restart=on-failure
+RestartSec=5
+# LLM / SSE can run long
+TimeoutStopSec=30
+
+[Install]
+WantedBy=multi-user.target

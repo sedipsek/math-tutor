@@ -8,7 +8,9 @@
     "dev:web": "vite",
     "dev:api": "tsx watch --env-file=.env.local server/index.ts",
     "build": "tsc --noEmit && vite build",
+    "start": "tsx --env-file=.env.local server/index.ts",
     "preview": "vite preview",
+
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:psql": "docker compose exec db psql -U math -d math_tutor",

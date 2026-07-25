@@ -1,0 +1,10 @@
+tunnel: 274c18e5-989b-46b2-aa64-d96930b63461
+credentials-file: /home/pi/.cloudflared/274c18e5-989b-46b2-aa64-d96930b63461.json
+
+ingress:
+  - hostname: math.chikenmoo.dev
+    service: http://127.0.0.1:80
+    originRequest:
+      connectTimeout: 30s
+      httpHostHeader: math.chikenmoo.dev
+  - service: http_status:404

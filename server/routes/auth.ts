@@ -11,12 +11,16 @@ import {
 } from "../lib/auth.ts";
 import { fail } from "../lib/http.ts";
 import { hashPassword, verifyPassword } from "../lib/password.ts";
+import { rateLimit } from "../lib/rateLimit.ts";
 import { db } from "../db/client.ts";
 import { users } from "../db/schema.ts";
 
 export const authRoutes = new Hono<{ Variables: AuthVariables }>();
 
 const USERNAME_RE = /^[a-zA-Z0-9_]{3,20}$/;
+
+/** 로그인/가입: IP당 10분 20회 */
+const authLimit = rateLimit({ name: "auth", limit: 20, windowMs: 10 * 60_000 });
 
 function publicUser(u: { id: number; username: string; role: string }) {
   return {
@@ -30,7 +34,7 @@ authRoutes.get("/me", (c) => {
   return c.json({ user: c.get("user") });
 });
 
-authRoutes.post("/signup", async (c) => {
+authRoutes.post("/signup", authLimit, async (c) => {
   let body: { username?: unknown; password?: unknown };
   try {
     body = await c.req.json();
@@ -74,7 +78,7 @@ authRoutes.post("/signup", async (c) => {
   return c.json({ user: publicUser(created!) }, 201);
 });
 
-authRoutes.post("/login", async (c) => {
+authRoutes.post("/login", authLimit, async (c) => {
   let body: { username?: unknown; password?: unknown };
   try {
     body = await c.req.json();

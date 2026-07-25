@@ -1,8 +1,22 @@
 # math-tutor
 
-중·고 수학 문제 유형 튜터 (로컬).
+중·고 수학 문제 검색·연습 및 AI 유사 문제·해설 생성 (로컬).
 
 스택: **Vite (React) + Hono + Drizzle + Postgres**
+
+## 데이터 출처 · 고지
+
+본 프로젝트의 **교재 문제**(검색·연습에 쓰는 원본 문항)는
+[AI 허브](https://www.aihub.or.kr/)의
+[**수학 교과 문제 풀이과정 데이터**](https://www.aihub.or.kr/aihubdata/data/view.do?aihubDataSe=data&dataSetSn=71859)
+(데이터셋 번호 **71859**)를 활용합니다.
+
+- 구축·개방: 과학기술정보통신부 / **한국지능정보사회진흥원(NIA)**
+- 수행기관(주관): ㈜미디어그룹사람과숲 등
+- 데이터 출처 메타: ㈜교학사·㈜대교 저작권 구매분 및 2차 저작
+- 이용 시 [AI 허브 데이터 이용정책](https://aihub.or.kr/intrcn/guid/usagepolicy.do)을 따릅니다.
+- AI로 **새로 생성한** 유사 문제·다른 풀이·피드백은 LLM 생성 결과이며, 교재 원문과 구분됩니다.
+- `datasets/` 원본·정리본은 git에 포함하지 않습니다. 원본 데이터의 재배포·제3자 제공은 하지 않습니다.
 
 ## 구조
 
