@@ -1,5 +1,5 @@
-tunnel: 274c18e5-989b-46b2-aa64-d96930b63461
-credentials-file: /home/pi/.cloudflared/274c18e5-989b-46b2-aa64-d96930b63461.json
+tunnel: f79a778e-4734-4ddf-bb76-face6141bb13
+credentials-file: /etc/cloudflared/f79a778e-4734-4ddf-bb76-face6141bb13.json
 
 ingress:
   - hostname: math.chikenmoo.dev

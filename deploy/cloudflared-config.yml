@@ -1,6 +1,6 @@
-# Pi 전용 터널 (chikenmoo-pi). credentials는 호스트 ~/.cloudflared 에만 둔다.
-tunnel: 274c18e5-989b-46b2-aa64-d96930b63461
-credentials-file: /home/pi/.cloudflared/274c18e5-989b-46b2-aa64-d96930b63461.json
+# Pi 전용 터널 (chikenmoo-pi). credentials는 호스트에만 둔다.
+tunnel: f79a778e-4734-4ddf-bb76-face6141bb13
+credentials-file: /etc/cloudflared/f79a778e-4734-4ddf-bb76-face6141bb13.json
 
 ingress:
   - hostname: math.chikenmoo.dev
@@ -8,10 +8,8 @@ ingress:
     originRequest:
       # origin이 127.0.0.1 이라 인증서 SAN 불일치 → 로컬만 검증 생략
       noTLSVerify: true
-      # SSE / 긴 LLM 생성
       connectTimeout: 30s
       tcpKeepAlive: 30s
       keepAliveTimeout: 90s
       httpHostHeader: math.chikenmoo.dev
-
   - service: http_status:404
