@@ -181,6 +181,19 @@ export function adminGenerate(body: AdminGenerateBody, signal?: AbortSignal) {
 
 export type GenerateStage = "refs" | "llm" | "validate" | "save" | "retry";
 
+export type AnswerFeedbackBody = {
+  correct: boolean;
+  userAnswer: string;
+  choiceMarker?: string;
+};
+
+export type AnswerFeedbackResult = {
+  guess: string;
+  tip: string;
+  model?: string;
+  cached?: boolean;
+};
+
 export type GenerateStreamHandlers = {
   onStage?: (info: {
     stage: GenerateStage;
@@ -192,6 +205,7 @@ export type GenerateStreamHandlers = {
   onReasoning?: (text: string) => void;
   onItem?: (problem: ProblemDetail) => void;
   onExplanation?: (explanation: AlternateExplanation) => void;
+  onFeedback?: (feedback: AnswerFeedbackResult) => void;
   onDone?: (count: number) => void;
   onError?: (message: string) => void;
 };
@@ -249,6 +263,15 @@ async function readSseStream(
     }
     if (name === "item" && payload.explanation) {
       handlers.onExplanation?.(payload.explanation as AlternateExplanation);
+      return;
+    }
+    if (name === "item" && payload.feedback) {
+      const fb = payload.feedback as AnswerFeedbackResult;
+      handlers.onFeedback?.({
+        ...fb,
+        cached:
+          typeof payload.cached === "boolean" ? payload.cached : fb.cached,
+      });
       return;
     }
     if (name === "done") {
@@ -357,19 +380,6 @@ export function streamGenerateExplanations(
   );
 }
 
-export type AnswerFeedbackBody = {
-  correct: boolean;
-  userAnswer: string;
-  choiceMarker?: string;
-};
-
-export type AnswerFeedbackResult = {
-  guess: string;
-  tip: string;
-  model?: string;
-  cached?: boolean;
-};
-
 export function requestAnswerFeedback(
   id: string,
   body: AnswerFeedbackBody,
@@ -379,6 +389,20 @@ export function requestAnswerFeedback(
     `/api/problems/${encodeURIComponent(id)}/feedback`,
     "POST",
     body,
+    signal,
+  );
+}
+
+export function streamAnswerFeedback(
+  id: string,
+  body: AnswerFeedbackBody,
+  handlers: GenerateStreamHandlers,
+  signal?: AbortSignal,
+) {
+  return postSse(
+    `/api/problems/${encodeURIComponent(id)}/feedback/stream`,
+    body,
+    handlers,
     signal,
   );
 }

@@ -6,6 +6,7 @@ import {
   generateAnswerFeedback,
   type AnswerFeedback,
   type ExplanationSource,
+  type GenerateProgress,
 } from "./generate.ts";
 
 export function feedbackAnswerKey(input: {
@@ -74,6 +75,7 @@ export async function getOrCreateFeedback(input: {
   userAnswer: string;
   choiceMarker?: string;
   signal?: AbortSignal;
+  onProgress?: GenerateProgress;
 }): Promise<AnswerFeedback & { cached: boolean }> {
   const answerKey = feedbackAnswerKey(input);
   const cached = await getCachedFeedback(input.problemId, answerKey);
@@ -86,8 +88,9 @@ export async function getOrCreateFeedback(input: {
       userAnswer: input.userAnswer,
       choiceMarker: input.choiceMarker,
     },
-    { signal: input.signal },
+    { signal: input.signal, onProgress: input.onProgress },
   );
+  await input.onProgress?.({ type: "stage", stage: "save" });
   await putCachedFeedback(input.problemId, answerKey, feedback);
   return { ...feedback, cached: false };
 }

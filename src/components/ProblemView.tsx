@@ -4,7 +4,7 @@ import {
   fetchExplanations,
   fetchGenerated,
   fetchGeneratedBySource,
-  requestAnswerFeedback,
+  streamAnswerFeedback,
   streamGenerateExplanations,
   streamGenerateSimilar,
   type GenerateStage,
@@ -17,6 +17,13 @@ import type {
 } from "../types";
 import GenerateLivePanel from "./GenerateLivePanel";
 import MathText from "./MathText";
+
+const FEEDBACK_STAGE_LABELS: Partial<Record<GenerateStage, string>> = {
+  llm: "AI가 피드백을 쓰는 중이에요",
+  validate: "응답을 검증하는 중이에요",
+  save: "저장하는 중이에요",
+  retry: "다시 시도하는 중이에요",
+};
 
 type Props = {
   detail: ProblemDetail;
@@ -70,6 +77,10 @@ export default function ProblemView({
   const [fbTip, setFbTip] = useState("");
   const [fbBusy, setFbBusy] = useState(false);
   const [fbError, setFbError] = useState("");
+  const [fbStage, setFbStage] = useState<GenerateStage | null>(null);
+  const [fbAttempt, setFbAttempt] = useState<number | undefined>();
+  const [fbDraft, setFbDraft] = useState("");
+  const [fbReasoning, setFbReasoning] = useState("");
   const [saWrongAnswer, setSaWrongAnswer] = useState("");
   const [saSubmitted, setSaSubmitted] = useState(false);
   const fbAbortRef = useRef<AbortController | null>(null);
@@ -139,6 +150,10 @@ export default function ProblemView({
     setFbTip("");
     setFbError("");
     setFbBusy(false);
+    setFbStage(null);
+    setFbAttempt(undefined);
+    setFbDraft("");
+    setFbReasoning("");
     setSaWrongAnswer("");
     setSaSubmitted(false);
     fetchExplanations(detail.id, controller.signal)
@@ -166,14 +181,33 @@ export default function ProblemView({
     setFbError("");
     setFbGuess("");
     setFbTip("");
+    setFbStage(null);
+    setFbAttempt(undefined);
+    setFbDraft("");
+    setFbReasoning("");
     try {
-      const res = await requestAnswerFeedback(
+      await streamAnswerFeedback(
         detail.id,
         { correct, userAnswer, choiceMarker },
+        {
+          onStage: (info) => {
+            if (info.stage === "retry" || info.stage === "llm") {
+              setFbDraft("");
+              setFbReasoning("");
+            }
+            setFbStage(info.stage);
+            setFbAttempt(info.attempt);
+          },
+          onDelta: (text) => setFbDraft((prev) => prev + text),
+          onReasoning: (text) => setFbReasoning((prev) => prev + text),
+          onFeedback: (fb) => {
+            setFbGuess(fb.guess);
+            setFbTip(fb.tip);
+          },
+          onError: (message) => setFbError(message),
+        },
         controller.signal,
       );
-      setFbGuess(res.guess);
-      setFbTip(res.tip);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
       setFbError(err instanceof Error ? err.message : "피드백 실패");
@@ -473,27 +507,45 @@ export default function ProblemView({
                 <p className="dim-text">
                   답을 입력하고 피드백 받기를 눌러 주세요.
                 </p>
-              ) : fbBusy ? (
-                <p className="dim-text">피드백을 준비하는 중이에요…</p>
-              ) : fbError ? (
-                <div className="notice error">{fbError}</div>
-              ) : fbGuess || fbTip ? (
-                <div className="feedback-body">
-                  {fbGuess && (
-                    <p>
-                      <span className="feedback-label">이랬나요?</span>{" "}
-                      <MathText>{fbGuess}</MathText>
-                    </p>
-                  )}
-                  {fbTip && (
-                    <p>
-                      <span className="feedback-label">이럴 땐</span>{" "}
-                      <MathText>{fbTip}</MathText>
-                    </p>
-                  )}
-                </div>
               ) : (
-                <p className="dim-text">피드백이 아직 없어요.</p>
+                <>
+                  {(fbBusy || fbDraft || fbReasoning || fbStage) && (
+                    <GenerateLivePanel
+                      busy={fbBusy}
+                      stage={fbStage}
+                      attempt={fbAttempt}
+                      draft={fbDraft}
+                      reasoning={fbReasoning}
+                      labels={FEEDBACK_STAGE_LABELS}
+                      doneLabel="피드백이 끝났어요"
+                    />
+                  )}
+                  {fbError && <div className="notice error">{fbError}</div>}
+                  {!fbBusy && (fbGuess || fbTip) ? (
+                    <div className="feedback-body">
+                      {fbGuess && (
+                        <p>
+                          <span className="feedback-label">이랬나요?</span>{" "}
+                          <MathText>{fbGuess}</MathText>
+                        </p>
+                      )}
+                      {fbTip && (
+                        <p>
+                          <span className="feedback-label">이럴 땐</span>{" "}
+                          <MathText>{fbTip}</MathText>
+                        </p>
+                      )}
+                    </div>
+                  ) : null}
+                  {!fbBusy &&
+                    !fbError &&
+                    !fbGuess &&
+                    !fbTip &&
+                    !fbDraft &&
+                    !fbStage && (
+                      <p className="dim-text">피드백이 아직 없어요.</p>
+                    )}
+                </>
               )}
             </div>
           )}

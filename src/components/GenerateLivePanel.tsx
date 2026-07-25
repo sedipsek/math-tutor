@@ -9,6 +9,9 @@ type Props = {
   attempt?: number;
   draft: string;
   reasoning: string;
+  /** 단계 문구 덮어쓰기 (피드백 등) */
+  labels?: Partial<Record<GenerateStage, string>>;
+  doneLabel?: string;
 };
 
 const STAGE_LABEL: Record<GenerateStage, string> = {
@@ -27,6 +30,8 @@ export default function GenerateLivePanel({
   attempt,
   draft,
   reasoning,
+  labels,
+  doneLabel = "생성이 끝났어요",
 }: Props) {
   const draftRef = useRef<HTMLPreElement>(null);
   const reasoningRef = useRef<HTMLPreElement>(null);
@@ -43,7 +48,9 @@ export default function GenerateLivePanel({
 
   if (!busy && !draft && !reasoning && !stage) return null;
 
-  const stageLabel = stage ? STAGE_LABEL[stage] : "준비하는 중이에요";
+  const stageLabel = stage
+    ? (labels?.[stage] ?? STAGE_LABEL[stage])
+    : "준비하는 중이에요";
   const progress =
     typeof index === "number" && typeof total === "number" && total > 1
       ? `${index + 1} / ${total}`
@@ -54,7 +61,7 @@ export default function GenerateLivePanel({
       <div className="gen-live-head">
         <span className={`gen-live-dot${busy ? " pulse" : ""}`} aria-hidden />
         <div className="gen-live-status">
-          <strong>{busy ? stageLabel : "생성이 끝났어요"}</strong>
+          <strong>{busy ? stageLabel : doneLabel}</strong>
           <span className="dim-text">
             {progress ? `${progress}번째 문제` : null}
             {attempt && attempt > 1 ? ` · ${attempt}번째 시도` : null}

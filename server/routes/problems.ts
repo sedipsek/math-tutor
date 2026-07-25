@@ -741,6 +741,34 @@ problemRoutes.post("/:id/similar/stream", requireAuth, llmLimit, async (c) => {
   return createSimilarStreamResponse(c, id, user);
 });
 
+function parseFeedbackBody(body: Record<string, unknown>): {
+  correct: boolean;
+  userAnswer: string;
+  choiceMarker?: string;
+} | { error: string } {
+  const correct = body.correct === true;
+  const userAnswer =
+    typeof body.userAnswer === "string" ? body.userAnswer.trim() : "";
+  const choiceMarker =
+    typeof body.choiceMarker === "string" && body.choiceMarker.trim()
+      ? body.choiceMarker.trim()
+      : undefined;
+
+  if (!correct && !choiceMarker && !userAnswer) {
+    return {
+      error: "오답 피드백에는 선택지 또는 작성한 답이 필요해요",
+    };
+  }
+
+  return {
+    correct,
+    userAnswer:
+      userAnswer ||
+      (choiceMarker ? `${choiceMarker}` : correct ? "(정답)" : ""),
+    choiceMarker,
+  };
+}
+
 problemRoutes.post("/:id/feedback", requireAuth, llmLimit, async (c) => {
   const id = c.req.param("id");
   if (!id) return fail(c, 400, "bad_path", "문제 id 필요");
@@ -757,21 +785,9 @@ problemRoutes.post("/:id/feedback", requireAuth, llmLimit, async (c) => {
     return fail(c, 400, "bad_body", "JSON 본문 필요");
   }
 
-  const correct = body.correct === true;
-  const userAnswer =
-    typeof body.userAnswer === "string" ? body.userAnswer.trim() : "";
-  const choiceMarker =
-    typeof body.choiceMarker === "string" && body.choiceMarker.trim()
-      ? body.choiceMarker.trim()
-      : undefined;
-
-  if (!correct && !choiceMarker && !userAnswer) {
-    return fail(
-      c,
-      400,
-      "bad_body",
-      "오답 피드백에는 선택지 또는 작성한 답이 필요해요",
-    );
+  const parsed = parseFeedbackBody(body);
+  if ("error" in parsed) {
+    return fail(c, 400, "bad_body", parsed.error);
   }
 
   const source = await loadExplanationSource(id);
@@ -781,11 +797,9 @@ problemRoutes.post("/:id/feedback", requireAuth, llmLimit, async (c) => {
     const result = await getOrCreateFeedback({
       problemId: id,
       source,
-      correct,
-      userAnswer:
-        userAnswer ||
-        (choiceMarker ? `${choiceMarker}` : correct ? "(정답)" : ""),
-      choiceMarker,
+      correct: parsed.correct,
+      userAnswer: parsed.userAnswer,
+      choiceMarker: parsed.choiceMarker,
       signal: c.req.raw.signal,
     });
     return c.json({
@@ -804,6 +818,78 @@ problemRoutes.post("/:id/feedback", requireAuth, llmLimit, async (c) => {
     return fail(c, 502, "feedback_failed", message);
   }
 });
+
+problemRoutes.post(
+  "/:id/feedback/stream",
+  requireAuth,
+  llmLimit,
+  async (c) => {
+    const id = c.req.param("id");
+    if (!id) return fail(c, 400, "bad_path", "문제 id 필요");
+
+    const access = await assertProblemReadable(id, c.get("user"));
+    if (!access.ok) {
+      return fail(c, access.status, access.code, access.message);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return fail(c, 400, "bad_body", "JSON 본문 필요");
+    }
+
+    const parsed = parseFeedbackBody(body);
+    if ("error" in parsed) {
+      return fail(c, 400, "bad_body", parsed.error);
+    }
+
+    const source = await loadExplanationSource(id);
+    if (!source) return fail(c, 404, "not_found", "문제 없음");
+
+    const signal = c.req.raw.signal;
+
+    return sseResponse(c, async (stream) => {
+      try {
+        const result = await getOrCreateFeedback({
+          problemId: id,
+          source,
+          correct: parsed.correct,
+          userAnswer: parsed.userAnswer,
+          choiceMarker: parsed.choiceMarker,
+          signal,
+          onProgress: (ev) => writeProgress(stream, ev),
+        });
+        await stream.writeSSE({
+          event: "item",
+          data: JSON.stringify({
+            feedback: {
+              guess: result.guess,
+              tip: result.tip,
+              model: result.model,
+            },
+            cached: result.cached,
+          }),
+        });
+        await stream.writeSSE({
+          event: "done",
+          data: JSON.stringify({ cached: result.cached }),
+        });
+      } catch (err) {
+        const message =
+          err instanceof LlmError
+            ? err.message
+            : err instanceof Error
+              ? err.message
+              : "피드백 생성 실패";
+        await stream.writeSSE({
+          event: "error",
+          data: JSON.stringify({ message }),
+        });
+      }
+    });
+  },
+);
 
 problemRoutes.get("/:id/explanations", async (c) => {
   const id = c.req.param("id");

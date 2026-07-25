@@ -9,7 +9,6 @@ import path from "node:path";
 import type { ProblemContent } from "./content.ts";
 import { curriculumRuleLines } from "./curriculum.ts";
 import {
-  chatCompletion,
   chatCompletionStream,
   LlmError,
   type ChatMessage,
@@ -669,10 +668,10 @@ function parseAnswerFeedback(rawText: string, model: string): AnswerFeedback {
   };
 }
 
-/** 유저 답에 대한 짧은 피드백 (동기) */
+/** 유저 답에 대한 짧은 피드백 (SSE 진행 이벤트 지원) */
 export async function generateAnswerFeedback(
   input: AnswerFeedbackInput,
-  options: { signal?: AbortSignal } = {},
+  options: GenerateOptions = {},
 ): Promise<AnswerFeedback> {
   const { source, correct, userAnswer, choiceMarker } = input;
 
@@ -722,29 +721,12 @@ export async function generateAnswerFeedback(
     .filter((line) => line !== "")
     .join("\n");
 
-  let lastError: Error | null = null;
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const { content, model } = await chatCompletion(
-        [system, { role: "user", content: userText }],
-        { mode: "text", signal: options.signal },
-      );
-      return parseAnswerFeedback(content, model);
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      if (options.signal?.aborted) throw lastError;
-      const retryable =
-        (err instanceof LlmError &&
-          (err.status === 429 || err.status === 504)) ||
-        (err instanceof Error && /JSON 파싱|비어/i.test(err.message));
-      if (retryable && attempt === 0) {
-        await new Promise((r) => setTimeout(r, 800));
-        continue;
-      }
-      throw lastError;
-    }
-  }
-  throw lastError ?? new Error("피드백 생성 실패");
+  return streamJsonWithRetry(
+    [system, { role: "user", content: userText }],
+    parseAnswerFeedback,
+    "피드백 생성 실패",
+    options,
+  );
 }
 
 export { MARKERS };

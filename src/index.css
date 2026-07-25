@@ -605,21 +605,23 @@ img { max-width: 100%; }
 .sa-wrong-form .alt-sol-btn { justify-self: start; }
 .feedback-card {
   display: grid; gap: 8px; padding: 14px 16px;
-  border: 1px solid #bbf7d0; border-radius: 12px; background: #f0fdf4;
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  border-radius: 12px;
+  background: rgba(220, 38, 38, 0.05);
 }
 .feedback-card h4 {
-  margin: 0; color: #15803d;
+  margin: 0; color: #b91c1c;
   font-size: 11px; font-weight: 800; letter-spacing: .12em;
 }
 .feedback-body { display: grid; gap: 8px; }
 .feedback-body p { margin: 0; line-height: 1.75; }
 .feedback-label {
   display: inline-block; margin-right: 4px;
-  font-size: 12px; font-weight: 800; color: #166534;
+  font-size: 12px; font-weight: 800; color: #b91c1c;
 }
 button.linkish {
   padding: 0; border: 0; background: none;
-  color: #15803d; font: inherit; font-weight: 800; text-decoration: underline;
+  color: var(--no); font: inherit; font-weight: 800; text-decoration: underline;
   cursor: pointer;
 }
 .self-report button.ok { color: var(--ok); border-color: rgba(22,163,74,.4); }
